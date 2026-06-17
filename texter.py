@@ -95,7 +95,7 @@ from collections import defaultdict
 
 
 class TextLabelManager:
-    def __init__(self, repulsion_radius=100, attraction_force=0.1, repulsion_force=0.1, damping=0.1):
+    def __init__(self, repulsion_radius=100, attraction_force=0.1, repulsion_force=0.1, damping=1):
         self.labels = {}  # object_id: {'pos': (x,y), 'text_pos': (x,y), 'velocity': (vx,vy)}
         self.repulsion_radius = repulsion_radius
         self.attraction_force = attraction_force

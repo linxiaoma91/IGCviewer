@@ -4,10 +4,14 @@ import os
 import matplotlib.pyplot as plt
 import contextily as ctx
 
-def get_basemap(min_lon, max_lon, min_lat, max_lat):
-    if os.path.exists("basemap.png"):
-        image_path = "basemap.png"  # Replace with your image path
-        basemap = cv2.imread(image_path)
+def get_basemap(minmax_coords):
+    min_lon, max_lon, min_lat, max_lat = minmax_coords
+
+    basemap_name = "basemap" + str(min_lon)[:4] + "#"+ str(min_lat)[:4] +".png"
+
+    if os.path.exists(basemap_name):
+        #image_path = "basemap.png"  # Replace with your image path
+        basemap = cv2.imread(basemap_name)
         # basemap = cv2.cvtColor(basemap, cv2.COLOR_RGB2BGR)
     else:
         fig, ax = plt.subplots(figsize=(19.2, 10.8), dpi=100, layout='constrained')
@@ -17,16 +21,45 @@ def get_basemap(min_lon, max_lon, min_lat, max_lat):
         ax.set_xticks([])
         ax.set_yticks([])
         ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, crs='EPSG:4326', attribution=False)
-        plt.savefig("basemap.png", dpi=100, bbox_inches='tight', pad_inches=0)
+        plt.savefig(basemap_name, dpi=100, bbox_inches='tight', pad_inches=0)
         plt.close()
 
-        image_path = "basemap.png"  # Replace with your image path
+        image_path = basemap_name  # Replace with your image path
         basemap = cv2.imread(image_path)
-        # basemap = cv2.cvtColor(basemap, cv2.COLOR_RGB2BGR)
 
     return basemap
 
-def latlon2px(lat, lon, min_lat, max_lat, min_lon, max_lon, img_size_x, img_size_y):
+def draw_taskmarkers(basemap, checkpoints_dict, minmax_coords, img_size_x, img_size_y):
+    _, _, min_lat, max_lat = minmax_coords
+    print(checkpoints_dict)
+    for marker_id, marker_data in checkpoints_dict.items():
+        print(marker_id)
+        lat = marker_data['Lat']
+        lon = marker_data['Lon']
+        radius = marker_data['R1']
+        name = marker_data['Name']
+        #print(checkpoints_dict)
+
+        radius_px = max(int(img_size_y/(max_lat - min_lat) * radius/111),10) # 1° = 111km)
+        print("Radius", radius, radius_px)
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        font_thickness = 1
+        text_color = (0, 0, 0)
+
+        # Call your drawing function with the extracted parameters
+        x_loc, y_loc = latlon2px(lat, lon, minmax_coords, img_size_x, img_size_y)
+        draw_circle(basemap, x_loc, y_loc, [radius_px], [(127,127,127)], 0.3)
+        cv2.putText(basemap, str(marker_id)+ ": " + str(name), (x_loc-5, y_loc+5), font, font_scale, text_color, font_thickness,
+                    cv2.LINE_AA)
+
+    return basemap
+
+def latlon2px(lat, lon, minmax_coords, img_size_x, img_size_y):
+
+    min_lon, max_lon, min_lat, max_lat = minmax_coords
+
     x = (lon - min_lon) * img_size_x / (max_lon - min_lon)
     y = -(lat - max_lat) * img_size_y / (max_lat - min_lat)
     return int(x), int(y) #Vorher runden!

@@ -6,8 +6,8 @@ import tqdm
 import os
 
 
-def file_loader(folder_paths=[]):
-    file_list = []
+def file_loader(folder_paths=[], use_saved=True):
+    file_list = []  # list of all igc-files in the given folders
     for folder in folder_paths:
         # List all files in the current folder
         for filename in os.listdir(folder):
@@ -17,14 +17,15 @@ def file_loader(folder_paths=[]):
             if os.path.isfile(file_path):
                 file_list.append(file_path)
 
-    pickle_name = folder_paths[0].replace("/", "-") + '.pkl'
+    pickle_name = folder_paths[0].replace("/", "-") + '.pkl'  # file name for master-igc-file storage
 
-    try:
+    if os.path.isfile(pickle_name) and use_saved==True:
         with open(pickle_name, 'rb') as file:  # 'rb' = read binary
             igcs = pickle.load(file)
-    except:
+    else:
+        print("Load and parse IGC-files")
         igcs = []
-        for file_name in tqdm.tqdm(file_list):
+        for file_name in tqdm.tqdm(file_list):  # load and parse all igc files
             igcs.append(IGC(file_name))
         with open(pickle_name, 'wb') as file:  # 'wb' = write binary
             pickle.dump(igcs, file)
@@ -36,7 +37,7 @@ class IGC:
         #print("Loading:", filepath)
         self.filepath = filepath
         self.start = start
-        self.lnavozn_data = {}  # Dictionary to store LNAVOZN data
+        self.nav_data = {}  # Dictionary to store nav data
 
         # Find pilot name
         match = re.search(r'_([a-zA-Z0-9]{1,})(?=\.\w+$)', self.filepath)
@@ -58,13 +59,14 @@ class IGC:
 
         self._load_and_parse()
 
-        if self.name == "PG":
-            self._parse_lnavozn()  # Parse LNAVOZN data
+        self._parse_navdata()  # Parse NAV data
 
         self.fill_gaps()
 
-    def _parse_lnavozn(self):
-        """Parse LNAVOZN entries from the IGC file with proper name filtering"""
+    def _parse_navdata(self):
+        """Parse NAV entries from the IGC file with proper name filtering"""
+        #TODO: liest bisher nur Zeilen mit LNAVOZN oder LLXVOZ, LSEEYOU OZ funktioniert noch nicht
+
         # First collect all valid point names in order
         point_names = []
         with open(self.filepath, 'r') as file:
@@ -72,40 +74,35 @@ class IGC:
                 line = line.strip()
                 if line.startswith('C'):
                     # Skip lines that are just timestamps or null coordinates
-                    if (line.startswith('C2') and len(line) == 25) or line.startswith('C0000000N00000000E'):
+                    if line.startswith('C0000000N00000000E') or line[1:].isdigit(): #(line.startswith('C2') and len(line) == 25) or
                         continue
 
-                    parts = line.split()
-                    if len(parts) >= 2:  # Has coordinates and name
-                        # Verify it has proper coordinate structure (N and E in expected positions)
-                        coord_part = parts[0][1:]  # Remove leading C
-                        if len(coord_part) >= 17 and 'N' in coord_part and 'E' in coord_part:
-                            point_names.append(' '.join(parts[1:]))
-                    else:  # No name provided but has coordinates
-                        point_names.append('')
-        #print(point_names)
+                    point_names.append(line[21:])
 
-        # Now parse LNAVOZN entries and assign names by order
+
+
+        # Now parse NAV entries and assign names by order
         name_index = 0
         with open(self.filepath, 'r') as file:
             current_group = None
 
             for line in file:
                 line = line.strip()
-                if line.startswith('LNAVOZN'):
+                if line.startswith('LNAVOZN') or line.startswith("LLXVOZ"):
                     parts = line.split(',')
                     group_id = parts[0].split('=')[1]
 
-                    if group_id not in self.lnavozn_data:
-                        self.lnavozn_data[group_id] = {
+                    if group_id not in self.nav_data:
+                        self.nav_data[group_id] = {
                             'Lat': None,
                             'Lon': None,
                             'R1': None,
+                            'R2': None,
                             'A12': None,
                             'Name': ''
                         }
 
-                    current_group = self.lnavozn_data[group_id]
+                    current_group = self.nav_data[group_id]
 
                     has_coords = False
                     for part in parts[1:]:
@@ -124,6 +121,11 @@ class IGC:
                                     current_group['R1'] = float(value.replace('m', '')) / 1000
                             elif key == 'A12':
                                 current_group['A12'] = float(value)
+                            elif key == 'R2':
+                                if 'km' in value:
+                                    current_group['R2'] = float(value.replace('km', ''))
+                                else:
+                                    current_group['R2'] = float(value.replace('m', '')) / 1000
 
                     # Only assign name when we have coordinates (to avoid double assignment)
                     if has_coords and name_index < len(point_names):
@@ -263,8 +265,8 @@ class IGC:
         self.lons = self.lons[start_idx:]
         self.alts = self.alts[start_idx:]
 
-    def get_lnavozn_data(self):
-        """Return the parsed LNAVOZN data"""
-        return self.lnavozn_data
+    def get_navdata(self):
+        """Return the parsed NAV data"""
+        return self.nav_data
 
 
