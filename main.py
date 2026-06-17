@@ -10,7 +10,7 @@ import dicts
 import texter
 
 # load list with all igc files in given folder
-igcs = igc.file_loader(folder_paths=["IGC/t2"], use_saved=True )
+igcs = igc.file_loader(folder_paths=["IGC/t3"], use_saved=True )
 
 #load task data dict from a single given igc file
 name = "PG"
@@ -42,13 +42,12 @@ nations_dict = dicts.nations_dict()
 colors_dict = dicts.colors_dict()
 angles_dict = dicts.angles_dict()
 
-
-# Zbraslavice Task 2
-start_dict = {"HV":"142119", "HG":"142052", "FOX":"142013", "SH":"142614", "CK":"142025",
-              "IX":"141422", "311":"142845", "6L":"141420", "FLS":"143018", "PG":"142016",
-              "J":"142847", "40":"141845", "NW":"141425", "AG":"142104", "B8":"144602",
-              "JM":"142856", "100":"142051", "QT":"144610", "1X":"141814", "RI":"144720",
-              "FP":"142617", "680":"145721", "AN":"142832", "W4":"144617"}
+start_dict = {"HV":"124935", "HG":"124950", "FOX":"123513",
+              "IX":"124812", "311":"123636", "6L":"124804", "FLS":"123630", "PG":"123512",
+              "J":"124459", "40":"124318", "NW":"124818", "AG":"124929", "B8":"125039",
+              "100":"122937", "QT":"130433", "1X":"124600", "RI":"124726",
+              "680":"123037", "AN":"123649", "W4":"123302", "CK":"123516", "FP":"123013",
+              "SH":"123005", "JM":"124531", "LS4":"122732"}
 
 # Zufällige Farben, falls erforderlich
 #random.seed(42)
