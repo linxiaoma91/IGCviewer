@@ -26,11 +26,23 @@ def get_basemap(minmax_coords):
 
         image_path = basemap_name  # Replace with your image path
         basemap = cv2.imread(image_path)
+        height, width = basemap.shape[:2]
+
+        # Define x-scaling factor depending on lat
+        scale_x = np.cos((np.radians(max_lat+min_lat))/2)
+        print(scale_x)
+        new_width = int(width * scale_x)
+        new_height = height  # Keep height unchanged
+        # Resize the image
+        basemap = cv2.resize(basemap, (new_width, new_height),
+                                  interpolation=cv2.INTER_LINEAR)
+
+        cv2.imwrite(image_path, basemap)
 
     return basemap
 
 def draw_taskmarkers(basemap, checkpoints_dict, minmax_coords, img_size_x, img_size_y):
-    _, _, min_lat, max_lat = minmax_coords
+    min_lon, max_lon, min_lat, max_lat = minmax_coords
     print(checkpoints_dict)
     for marker_id, marker_data in checkpoints_dict.items():
         print(marker_id)
@@ -41,6 +53,10 @@ def draw_taskmarkers(basemap, checkpoints_dict, minmax_coords, img_size_x, img_s
         #print(checkpoints_dict)
 
         radius_px = max(int(img_size_y/(max_lat - min_lat) * radius/111),10) # 1° = 111km)
+        print("LAT",min_lat,max_lat - min_lat)
+        print("LON",min_lon,max_lon - min_lon)
+        print("IMG YX",img_size_y, img_size_x)
+
         print("Radius", radius, radius_px)
 
         font = cv2.FONT_HERSHEY_SIMPLEX

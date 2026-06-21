@@ -5,6 +5,7 @@ import pickle
 import tqdm
 import os
 
+import matplotlib.pyplot as plt
 
 def file_loader(folder_paths=[], use_saved=True):
     file_list = []  # list of all igc-files in the given folders
@@ -268,5 +269,78 @@ class IGC:
     def get_navdata(self):
         """Return the parsed NAV data"""
         return self.nav_data
+
+
+    def get_start_time(self, checkpoints_dict):
+
+        def get_heading(start_lat, start_lon, end_lat, end_lon):
+            d_lat = end_lat - start_lat
+            d_lon = (end_lon - start_lon) * np.cos(np.radians((start_lat+end_lat)/2))
+            start_heading = np.atan2(d_lon, d_lat)
+            return start_heading
+
+        def get_distance(start_lat, start_lon, end_lat, end_lon):
+
+            km_per_degree_lat = 111
+            km_per_degree_lon = 111 * np.cos(np.radians(start_lat))
+
+            # Calculate differences in kilometers
+            dx = (start_lon - end_lon) * km_per_degree_lon
+            dy = (start_lat - end_lat) * km_per_degree_lat
+            dist = np.sqrt(dx**2 + dy**2)
+            return dist
+
+        print("### ###")
+        print(self.name)
+
+        startline_lat = checkpoints_dict["-1"]["Lat"]
+        startline_lon = checkpoints_dict["-1"]["Lon"]
+        startline_radius = checkpoints_dict["-1"]["R1"]
+
+        target_lat = checkpoints_dict["0"]["Lat"]
+        target_lon = checkpoints_dict["0"]["Lon"]
+        target_radius = checkpoints_dict["0"]["R1"]
+
+        print(target_radius)
+
+        start_heading = get_heading(startline_lat, startline_lon, target_lat, target_lon)
+
+        start_heading_upperlimit = (start_heading - np.pi/2) % (2*np.pi)
+        start_heading_lowerlimit = (start_heading + np.pi/2) % (2*np.pi)
+
+        #plt.plot(get_distance(target_lat, target_lon, self.lats, self.lons))
+        #plt.show()
+        print("MIN", np.min(get_distance(target_lat, target_lon, self.lats, self.lons)))
+
+        at_target = get_distance(target_lat, target_lon, self.lats, self.lons) < target_radius
+        at_target_idx = np.argmax(at_target)
+        print("LEN",len(at_target))
+        print("IDX", at_target_idx)
+
+        headings = get_heading(startline_lat, startline_lon, self.lats, self.lons)
+
+        if start_heading_lowerlimit < start_heading_upperlimit:
+            behind_startline_arr = (headings > start_heading_lowerlimit) & (headings < start_heading_upperlimit) & (get_distance(startline_lat,startline_lon,self.lats, self.lons) < startline_radius)
+        else:
+            behind_startline_arr = (headings > start_heading_lowerlimit) | (headings < start_heading_upperlimit)
+
+        #behind_startline_arr = (headings < start_heading_lowerlimit) & (headings > start_heading_upperlimit) & (get_distance(startline_lat,startline_lon,self.lats, self.lons) < startline_radius)
+        behind_startline_arr = behind_startline_arr[0:at_target_idx]
+
+        last_behind_startline_idx = len(behind_startline_arr) - 1 - np.argmax(behind_startline_arr[::-1])
+
+        self.start_time = int(self.times[last_behind_startline_idx])
+
+        print(self.name, "START TIME", f"{self.start_time//3600:02d}:{(self.start_time%3600)//60:02d}:{self.start_time%60:02d}")
+
+        return self.start_time
+
+
+
+
+
+
+
+
 
 

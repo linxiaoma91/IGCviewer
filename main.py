@@ -10,12 +10,17 @@ import dicts
 import texter
 
 # load list with all igc files in given folder
-igcs = igc.file_loader(folder_paths=["IGC/t3"], use_saved=True )
+igcs = igc.file_loader(folder_paths=["IGC/t6"], use_saved=True )
 
 #load task data dict from a single given igc file
-name = "PG"
+name = "SG"
 index = next((i for i, obj in enumerate(igcs) if obj.name == name), None)
 checkpoints_dict = igcs[index].get_navdata()
+
+print(checkpoints_dict)
+
+for igc in igcs:
+    igc.get_start_time(checkpoints_dict)
 
 map_padding = 0.1 # umlaufender Rand auf der Karte in Winkel-Grad
 fasl = 1618 # Referenzhöhe für Berechnung der Marker-Durchmesser
@@ -33,33 +38,32 @@ helper_functions.clear_folder("frames/")
 # Kartenansicht erstellen
 basemap = painter.get_basemap(minmax_coords)
 img_size_y, img_size_x, _ = basemap.shape
+print(basemap.shape)
 
 # plot task markers
 basemap = painter.draw_taskmarkers(basemap, checkpoints_dict, minmax_coords, img_size_x, img_size_y)
 
 #get dicts for national roundels (fancy für Weltmeisterschaften!)
 nations_dict = dicts.nations_dict()
-colors_dict = dicts.colors_dict()
+#colors_dict = dicts.colors_dict()
 angles_dict = dicts.angles_dict()
 
-start_dict = {"HV":"124935", "HG":"124950", "FOX":"123513",
-              "IX":"124812", "311":"123636", "6L":"124804", "FLS":"123630", "PG":"123512",
-              "J":"124459", "40":"124318", "NW":"124818", "AG":"124929", "B8":"125039",
-              "100":"122937", "QT":"130433", "1X":"124600", "RI":"124726",
-              "680":"123037", "AN":"123649", "W4":"123302", "CK":"123516", "FP":"123013",
-              "SH":"123005", "JM":"124531", "LS4":"122732"}
+start_dict = dicts.start_dict_feuerst_t4()
 
 # Zufällige Farben, falls erforderlich
-#random.seed(42)
-#colors_dict = {igc.name: (random.randint(0,256),random.randint(0,256),random.randint(0,256)) for igc in igcs}
+random.seed(42)
+colors_dict = {igc.name: (random.randint(0,256),random.randint(0,256),random.randint(0,256)) for igc in igcs}
 
-total_length = max(len(arr.lats[::time_step]) for arr in igcs)
+total_length = max(len(igc.lats[::time_step]) for igc in igcs)
 
 # Objekte für dynamische Labels, falls zu zittrig, Variablen SANFT verändern
 label_manager = texter.TextLabelManager(repulsion_radius=75, attraction_force=0.1, repulsion_force=0.2, damping=0.1)
 
 if time_mode == "synced":
-    min_time = min(int(t[0:2])*3600 + int(t[2:4])*60 + int(t[4:6]) for t in start_dict.values()) + time_offset
+    #min_time = min(int(t[0:2])*3600 + int(t[2:4])*60 + int(t[4:6]) for t in start_dict.values()) + time_offset
+    min_time = min(igc.start_time for igc in igcs)
+    print("MIN", min_time/3600
+          )
 elif time_mode == "abs":
     min_time = min_time
 
@@ -81,7 +85,9 @@ for step in tqdm(range(0, int((max_time - min_time) / time_step))):
         if time_mode == "synced":
 
 
-            start_time = int(start_dict[igc.name][0:2])*3600 + int(start_dict[igc.name][2:4])*60 + int(start_dict[igc.name][4:6])
+            #start_time = int(start_dict[igc.name][0:2])*3600 + int(start_dict[igc.name][2:4])*60 + int(start_dict[igc.name][4:6])
+
+            start_time = igc.start_time - time_offset
 
             abs_time = min(start_time + step * time_step + time_offset, np.max(igc.times))
 
@@ -100,7 +106,7 @@ for step in tqdm(range(0, int((max_time - min_time) / time_step))):
             nation = None
 
         try:
-            color = colors_dict[nation] # use nation as index
+            color = [(0,0,0), colors_dict[igc.name]] # use nation or name as index
         except KeyError:
             color = [(127,127,127)]*2
 
@@ -148,7 +154,7 @@ for step in tqdm(range(0, int((max_time - min_time) / time_step))):
             if len(color) == 3:
                 r_list = [radius, int(radius * 0.66), int(radius * 0.33)]
             elif len(color) == 2:
-                r_list = [radius, radius // 2]
+                r_list = [radius, radius -2]
         else:
             r_list = [radius] * len(color)
 
